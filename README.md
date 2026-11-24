@@ -23,6 +23,16 @@ Because the objective changes only when teams exchange ranks, the optimizer eval
 
 The November 17, 2026 CFP release (games through November 15) matches the Week 11 snapshot: https://collegefootballplayoff.com/news/2026/11/17/rankings. The matching Week 12 release is pending as of November 23 and is scheduled for November 24. Week 12 shows a pending message until that snapshot is added. FEI-only mode shows standardized values, raw FEI ratings, and published FEI ranks.
 
+## Head-to-head criteria
+
+In SOR + FEI mode, **Apply head-to-head criteria** makes one pass from position 1 toward position 138. At each position, if the lower adjacent team beat the higher adjacent team, they swap; the scan then advances one position. A displaced loser can therefore move down repeatedly. Earlier positions are not revisited, and the pass is not repeated. The rule applies regardless of overall record. All earlier completed games in the selected season through the selected week are eligible; later games are excluded.
+
+The raw weighted scores remain unchanged. With head-to-head enabled, the displayed table and comparison plot use adjusted ordinal positions 1–138. Before the pass, equal scores use alphabetical team order. Turning the option off restores the score-based ranking and its original competition ties.
+
+The separate **Use head-to-head fit** button minimizes the same committee-rank MSE after applying this pass for every candidate weight. It sets the fitted weight and turns head-to-head on. The ordinary fit button applies its score-only optimum and turns head-to-head off. Each benchmark has distinct ordinary and head-to-head optima; the UI shows only the selected benchmark. Both modes require matching committee data.
+
+The cumulative Week 11 and Week 12 result snapshots contain 629 and 695 FBS-vs-FBS games respectively. The full 822-game results archive, including FCS opponents, exactly reproduces all 138 teams' overall records in each saved FEI week. Source: https://cfbplanner.com/games/, retrieved November 24, 2026. Detailed frozen results and provenance are saved in `data/head-to-head-results.json`.
+
 ## GitHub Pages
 
 Publish the `main` branch from the repository root in Settings → Pages. The entry point is `index.html`. No build step is needed.
