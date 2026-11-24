@@ -8,30 +8,35 @@
   const storageKey = 'fei-personal-ranking-v1';
   let saved = {}, submitted = null, currentFits = [], worker = null, busy = false;
   try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch {}
-  for (const name of names) {
-    const option = document.createElement('option'); option.value = name; $('fbs-teams').append(option);
-  }
-  const entryLogos = [];
+  const entryLogos = [], optionGroups = [], restoredTeams = new Set();
   function updateLogo(input,image) {
     const team=canonical.get(input.value.trim().toLowerCase());
     const url=team && personalLogos[team]; image.hidden=!url;
     if(url) image.src=url; else image.removeAttribute('src');
   }
   const inputs = Array.from({length:25},(_,i) => {
-    const label = document.createElement('label'), title = document.createElement('span'), input = document.createElement('input');
-    title.textContent = '#' + (i+1); input.id = 'personal-rank-' + (i+1); input.setAttribute('list','fbs-teams');
-    input.setAttribute('aria-label','Team ranked number ' + (i+1)); input.autocomplete = 'off'; input.required = true;
-    input.placeholder = 'Type or choose a team'; input.value = typeof saved.teams?.[i] === 'string' ? saved.teams[i] : '';
+    const label = document.createElement('label'), title = document.createElement('span'), input = document.createElement('select');
+    title.textContent = '#' + (i+1); input.id = 'personal-rank-' + (i+1); 
+    input.setAttribute('aria-label','Team ranked number ' + (i+1)); input.required = true;
+    const placeholder=document.createElement('option'); placeholder.value=''; placeholder.textContent='Choose a team'; placeholder.disabled=true; input.append(placeholder);
+    const options=names.map(team=>{const option=document.createElement('option'); option.value=team; option.textContent=team; input.append(option); return option;}); optionGroups.push(options);
+    const restored=typeof saved.teams?.[i] === 'string' ? canonical.get(saved.teams[i].trim().toLowerCase()) : null;
+    input.value=restored && !restoredTeams.has(restored) ? restored : ''; if(input.value) restoredTeams.add(input.value);
     const image=document.createElement('img'); image.className='entry-logo'; image.alt=''; image.setAttribute('aria-hidden','true');
     image.addEventListener('error',()=>{image.hidden=true;}); entryLogos.push(image); updateLogo(input,image);
     label.append(title,input,image); $('rank-inputs').append(label); return input;
   });
+  function updateChoices() {
+    const selected=new Set(inputs.map(input=>input.value).filter(Boolean));
+    inputs.forEach((input,i)=>optionGroups[i].forEach(option=>{option.disabled=selected.has(option.value)&&option.value!==input.value;}));
+  }
+  updateChoices();
   function saveDraft() {
     try { localStorage.setItem(storageKey,JSON.stringify({week:latestWeek,teams:inputs.map(input=>input.value)})); $('draft-status').textContent='Draft saved in this browser'; }
     catch { $('draft-status').textContent='Browser storage unavailable; keep this page open to retain your draft'; }
     if (submitted) $('progress').textContent='Your entries changed. Submit again to update the results.';
   }
-  inputs.forEach((input,i) => input.addEventListener('input',()=>{updateLogo(input,entryLogos[i]);saveDraft();}));
+  inputs.forEach((input,i) => input.addEventListener('change',()=>{updateChoices();updateLogo(input,entryLogos[i]);saveDraft();}));
   function error(message) { $('form-error').textContent=message; $('form-error').hidden=false; }
   function setBusy(value) {
     busy=value; $('submit-ranking').disabled=value;
