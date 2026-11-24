@@ -28,12 +28,14 @@ const weeklyRatings={"11":[["Georgia",1.61,1],["Notre Dame",1.53,2],["Miami",1.4
   adjusted.forEach((r,i)=>{r.rank=i+1;});
   return adjusted;
  }
- function rankMSE(rows,committeeTeams,weight,headToHead=null){
+ function rankMSE(rows,committeeTeams,weight,headToHead=null,weighted=false){
   if(!committeeTeams.length)return null;
+  const rankWeight=i=>weighted?1/Math.sqrt(i+1):1;
+  const weightTotal=weighted?committeeTeams.reduce((sum,_,i)=>sum+rankWeight(i),0):committeeTeams.length;
   if(headToHead){
    const scored=rows.map(r=>({...r,score:(1-weight)*r.feiZ+weight*r.sorZ})).sort((a,b)=>b.score-a.score||a.team.localeCompare(b.team));
    const ranks=new Map(applyHeadToHead(scored,headToHead).map(r=>[r.team,r.rank]));
-   return committeeTeams.reduce((sum,team,i)=>sum+(ranks.get(team)-(i+1))**2,0)/(2*committeeTeams.length);
+   return committeeTeams.reduce((sum,team,i)=>sum+rankWeight(i)*(ranks.get(team)-(i+1))**2,0)/(2*weightTotal);
   }
   const keys=rows.map(r=>Math.round(((1-weight)*r.feiZ+weight*r.sorZ)*1e12));
   const indices=new Map(rows.map((r,i)=>[r.team,i]));
@@ -42,11 +44,11 @@ const weeklyRatings={"11":[["Georgia",1.61,1],["Notre Dame",1.53,2],["Miami",1.4
    const index=indices.get(team);
    if(index===undefined)throw new Error(`Missing committee team: ${team}`);
    const rank=1+keys.reduce((n,key)=>n+(key>keys[index]?1:0),0);
-   squared+=(rank-(i+1))**2;
+   squared+=rankWeight(i)*(rank-(i+1))**2;
   });
-  return squared/(2*committeeTeams.length);
+  return squared/(2*weightTotal);
  }
- function fitWeight(ratings,records,committeeTeams,benchmark,headToHead=null){
+ function fitWeight(ratings,records,committeeTeams,benchmark,headToHead=null,weighted=false){
   if(!committeeTeams.length)return null;
   const rows=buildScores(ratings,records,0,benchmark);
   // Ranks change only when two affine scores cross. Check every interval and
@@ -62,7 +64,7 @@ const weeklyRatings={"11":[["Georgia",1.61,1],["Notre Dame",1.53,2],["Miami",1.4
   const boundaries=[...new Set(crossings)].sort((a,b)=>a-b);
   let best=null;
   function consider(weight,low,high){
-   const mse=rankMSE(rows,committeeTeams,weight,headToHead),span=high-low;
+   const mse=rankMSE(rows,committeeTeams,weight,headToHead,weighted),span=high-low;
    if(!best||mse<best.mse-1e-12||(Math.abs(mse-best.mse)<1e-12&&(span>best.span+1e-12||(Math.abs(span-best.span)<1e-12&&Math.abs(weight-.5)<Math.abs(best.weight-.5))))){best={weight,mse,low,high,span};}
   }
   boundaries.forEach((weight,i)=>{

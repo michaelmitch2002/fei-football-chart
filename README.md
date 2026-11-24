@@ -44,3 +44,7 @@ The chart library and logos load from external CDNs. School logos belong to thei
 ## Personal rankings
 
 `personal.html` lets visitors type or select 25 unique FBS teams using the latest available week automatically (currently Week 12), with no week selector. Drafts stay in browser storage; submission runs locally in a Web Worker. The same chart optimizer fits all three benchmarks in score-only and head-to-head modes against the visitor’s ordered teams, using all 138 FBS teams for standardization and model ranks. All minimum-MSE fits are highlighted; a selector compares each fitted model with the submitted ranking. `personal-data.js` contains frozen copies of the chart’s weekly data and shared mathematical functions. Refresh it whenever the chart’s data or optimizer changes. No server or personal-ranking uploads are used.
+
+## Weighted least squares option
+
+The committee fit and personal ranking page offer equal-weight least squares (the default) or weighted least squares. Target rank r receives weight 1/sqrt(r), applied directly to squared perpendicular rank error. The normalized objective is sum(w_r * (modelRank - r)^2 / 2) / sum(w_r). Committee rank supplies r on the rankings chart; submitted personal rank supplies r on the personal page. Rank 1 receives five times the error weight of rank 25. Both score-only and head-to-head optimizations support this objective for every benchmark. The ranking score itself remains FEI weight * FEI_std + SOR weight * SOR_std.

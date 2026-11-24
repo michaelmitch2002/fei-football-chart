@@ -5,6 +5,7 @@
   const names = weeklyRatings[latestWeek].map(row => row[0]).sort((a,b) => a.localeCompare(b));
   const canonical = new Map(names.map(name => [name.toLowerCase(),name]));
   const benchmarkNames = ['Elite','Good','Average'];
+  const lossInput=$('personal-fit-loss');
   const storageKey = 'fei-personal-ranking-v1';
   let saved = {}, submitted = null, currentFits = [], worker = null, busy = false;
   try { saved = JSON.parse(localStorage.getItem(storageKey) || '{}') || {}; } catch {}
@@ -31,15 +32,17 @@
     inputs.forEach((input,i)=>optionGroups[i].forEach(option=>{option.disabled=selected.has(option.value)&&option.value!==input.value;}));
   }
   updateChoices();
+  lossInput.value=saved.fitLoss==='weighted'?'weighted':'uniform';
+  lossInput.addEventListener('change',saveDraft);
   function saveDraft() {
-    try { localStorage.setItem(storageKey,JSON.stringify({week:latestWeek,teams:inputs.map(input=>input.value)})); $('draft-status').textContent='Draft saved in this browser'; }
+    try { localStorage.setItem(storageKey,JSON.stringify({week:latestWeek,fitLoss:lossInput.value,teams:inputs.map(input=>input.value)})); $('draft-status').textContent='Draft saved in this browser'; }
     catch { $('draft-status').textContent='Browser storage unavailable; keep this page open to retain your draft'; }
     if (submitted) $('progress').textContent='Your entries changed. Submit again to update the results.';
   }
   inputs.forEach((input,i) => input.addEventListener('change',()=>{updateChoices();updateLogo(input,entryLogos[i]);saveDraft();}));
   function error(message) { $('form-error').textContent=message; $('form-error').hidden=false; }
   function setBusy(value) {
-    busy=value; $('submit-ranking').disabled=value;
+    busy=value; $('submit-ranking').disabled=value; lossInput.disabled=value;
     inputs.forEach(input=>input.disabled=value); $('personal-form').setAttribute('aria-busy',String(value));
   }
   // Run the exact chart optimizer in a worker so the entry form remains responsive.
@@ -49,7 +52,7 @@
         const wins = new Set(data.games.map(([winner,loser])=>winner+'\\u0000'+loser));
         const fits=[];
         for(let benchmark=1;benchmark<=3;benchmark++) for(const h2h of [false,true]) {
-          fits.push({...fitWeight(data.ratings,data.records,data.teams,benchmark,h2h?wins:null),benchmark,h2h});
+          fits.push({...fitWeight(data.ratings,data.records,data.teams,benchmark,h2h?wins:null,data.weighted),benchmark,h2h});
           self.postMessage({progress:fits.length});
         }
         self.postMessage({fits});
@@ -74,10 +77,12 @@
   }
   function render(fits) {
     currentFits=fits;
+    const lossLabel=submitted.weighted?'weighted MSE':'MSE';
+    $('personal-loss-heading').textContent=lossLabel;
     const minimum=Math.min(...fits.map(fit=>fit.mse));
     const winners=fits.filter(fit=>Math.abs(fit.mse-minimum)<1e-10);
-    $('best-summary').textContent=(winners.length>1?'Equally closest matches: ':'Closest match: ')+winners.map(fit=>fitLabel(fit)+' — FEI '+percent(1-fit.weight)+', SOR '+percent(fit.weight)).join('; ')+'. MSE '+minimum.toFixed(2)+'.';
-    $('result-context').textContent='Based on your submitted Week '+submitted.week+' top 25. Lower MSE means closer alignment with your order. Inputs use all 138 FBS teams.';
+    $('best-summary').textContent=(winners.length>1?'Equally closest matches: ':'Closest match: ')+winners.map(fit=>fitLabel(fit)+' — FEI '+percent(1-fit.weight)+', SOR '+percent(fit.weight)).join('; ')+'. '+lossLabel+' '+minimum.toFixed(2)+'.';
+    $('result-context').textContent='Based on your submitted Week '+submitted.week+' top 25. Lower '+lossLabel+' means closer alignment with your order. Inputs use all 138 FBS teams.';
     const body=$('fit-table').querySelector('tbody'); body.replaceChildren(); $('fit-choice').replaceChildren();
     fits.forEach((fit,index)=>{
       const best=Math.abs(fit.mse-minimum)<1e-10, row=document.createElement('tr');
@@ -97,7 +102,7 @@
     const seen=new Set();
     for(let i=0;i<teams.length;i++) { if(seen.has(teams[i])) { error(teams[i]+' appears more than once. Select 25 different teams.'); inputs[i].focus(); return; } seen.add(teams[i]); }
     inputs.forEach((input,i)=>input.value=teams[i]); saveDraft();
-    submitted={week:latestWeek,teams}; $('personal-results').hidden=true; setBusy(true);
+    submitted={week:latestWeek,teams,weighted:lossInput.value==='weighted'}; $('personal-results').hidden=true; setBusy(true);
     $('progress').textContent='Fitting your ranking across all three benchmarks and both rules…';
     try {
       if(worker) worker.terminate();
@@ -109,7 +114,7 @@
         if(data.error) { setBusy(false); error('The fit could not finish: '+data.error); $('progress').textContent=''; worker.terminate(); worker=null; }
       };
       worker.onerror=()=>{ setBusy(false); error('The fit could not run in this browser. Please try again in an updated browser.'); $('progress').textContent=''; worker?.terminate(); worker=null; };
-      worker.postMessage({ratings:weeklyRatings[submitted.week],records:weekSnapshots[submitted.week].record,games:headToHeadSnapshots[submitted.week],teams});
+      worker.postMessage({ratings:weeklyRatings[submitted.week],records:weekSnapshots[submitted.week].record,games:headToHeadSnapshots[submitted.week],teams,weighted:submitted.weighted});
     } catch { setBusy(false); error('The fit could not start in this browser. Your draft has been retained where browser storage is available.'); $('progress').textContent=''; }
   });
 })();

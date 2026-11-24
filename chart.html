@@ -1583,6 +1583,8 @@ html&gt;body{padding:0}&lt;/style&gt;
     &lt;p class=&quot;text-small fei-h2h-description&quot;&gt;One pass from #1 toward #138: if a team lost to the team immediately behind it, swap them, then advance one position. Uses completed games through the selected week. Adjusted ranks are positions 1–138; equal scores initially sort by team name. Scores stay unchanged.&lt;/p&gt;
     &lt;section class=&quot;card&quot; role=&quot;group&quot; aria-labelledby=&quot;fei-fit-heading&quot;&gt;
     &lt;h3 id=&quot;fei-fit-heading&quot;&gt;Fit weights to committee&lt;/h3&gt;
+    &lt;label class=&quot;form-label&quot; for=&quot;fei-fit-loss&quot;&gt;Fit objective&lt;select class=&quot;form-select&quot; id=&quot;fei-fit-loss&quot;&gt;&lt;option value=&quot;uniform&quot;&gt;Least squares · equal weight&lt;/option&gt;&lt;option value=&quot;weighted&quot;&gt;Weighted least squares · 1/√rank&lt;/option&gt;&lt;/select&gt;&lt;/label&gt;
+    &lt;p class=&quot;text-small&quot;&gt;Weighted fit uses committee rank &lt;code&gt;r&lt;/code&gt;: &lt;code&gt;w = 1/√r&lt;/code&gt; and &lt;code&gt;weighted MSE = Σ[w × (our rank − r)² / 2] / Σw&lt;/code&gt;. The weight multiplies the squared error directly. Higher-ranked teams receive more weight.&lt;/p&gt;
     &lt;p class=&quot;text-small&quot;&gt;FEI and SOR weights add to 100%. Fit minimizes &lt;code&gt;MSE = mean((our rank − committee rank)² / 2)&lt;/code&gt;, the squared perpendicular distance to the equal-rank line in rank units. Uses the 25 committee-ranked teams, with our ranks calculated among all 138 FBS teams.&lt;/p&gt;
     &lt;div class=&quot;fei-fit-options&quot;&gt;
       &lt;div class=&quot;fei-fit-row&quot; data-fit-row=&quot;1&quot; hidden&gt;&lt;span class=&quot;fei-fit-result text-small tabular-nums&quot; data-fit-result=&quot;1&quot;&gt;&lt;/span&gt;&lt;button class=&quot;btn btn-block&quot; type=&quot;button&quot; data-fit-benchmark=&quot;1&quot;&gt;Use elite fit&lt;/button&gt;&lt;/div&gt;
@@ -1686,9 +1688,12 @@ html&gt;body{padding:0}&lt;/style&gt;
  let animateNext=false,previousPositions=new Map(),previousComparisonPositions=new Map();
  const views=[];
  const fitCache=new Map();
+ let fitLoss=window.openai?.widgetState?.modelContent?.fitLoss===&#x27;weighted&#x27;?&#x27;weighted&#x27;:&#x27;uniform&#x27;;
+ const fitLossInput=root.querySelector(&#x27;#fei-fit-loss&#x27;);fitLossInput.value=fitLoss;
+ const fitKey=(h2h=false)=&gt;week+(h2h?&#x27;-h2h&#x27;:&#x27;&#x27;)+(fitLoss===&#x27;weighted&#x27;?&#x27;-weighted&#x27;:&#x27;&#x27;);
  const formatValue=v=&gt;(measure!==&#x27;schedule&#x27;&amp;&amp;v&gt;0?&#x27;+&#x27;:&#x27;&#x27;)+v.toFixed(measure===&#x27;combined&#x27;?3:2);
  const reduced=matchMedia(&#x27;(prefers-reduced-motion: reduce)&#x27;).matches;
- const save=()=&gt;window.openai?.setWidgetState?.({modelContent:{team:selected,benchmark:metricCol,measure,week:Number(week),sorWeight:weightPct/100,headToHead:headToHeadEnabled}})?.catch(()=&gt;{});
+ const save=()=&gt;window.openai?.setWidgetState?.({modelContent:{team:selected,benchmark:metricCol,measure,week:Number(week),sorWeight:weightPct/100,headToHead:headToHeadEnabled,fitLoss}})?.catch(()=&gt;{});
  function select(team,persist=false){
   selected=data.some(d=&gt;d[0]===team)?team:data[0][0];
   const d=data.find(d=&gt;d[0]===selected);
@@ -1733,12 +1738,14 @@ html&gt;body{padding:0}&lt;/style&gt;
   adjusted.forEach((r,i)=&gt;{r.rank=i+1;});
   return adjusted;
  }
- function rankMSE(rows,committeeTeams,weight,headToHead=null){
+ function rankMSE(rows,committeeTeams,weight,headToHead=null,weighted=false){
   if(!committeeTeams.length)return null;
+  const rankWeight=i=&gt;weighted?1/Math.sqrt(i+1):1;
+  const weightTotal=weighted?committeeTeams.reduce((sum,_,i)=&gt;sum+rankWeight(i),0):committeeTeams.length;
   if(headToHead){
    const scored=rows.map(r=&gt;({...r,score:(1-weight)*r.feiZ+weight*r.sorZ})).sort((a,b)=&gt;b.score-a.score||a.team.localeCompare(b.team));
    const ranks=new Map(applyHeadToHead(scored,headToHead).map(r=&gt;[r.team,r.rank]));
-   return committeeTeams.reduce((sum,team,i)=&gt;sum+(ranks.get(team)-(i+1))**2,0)/(2*committeeTeams.length);
+   return committeeTeams.reduce((sum,team,i)=&gt;sum+rankWeight(i)*(ranks.get(team)-(i+1))**2,0)/(2*weightTotal);
   }
   const keys=rows.map(r=&gt;Math.round(((1-weight)*r.feiZ+weight*r.sorZ)*1e12));
   const indices=new Map(rows.map((r,i)=&gt;[r.team,i]));
@@ -1747,11 +1754,11 @@ html&gt;body{padding:0}&lt;/style&gt;
    const index=indices.get(team);
    if(index===undefined)throw new Error(`Missing committee team: ${team}`);
    const rank=1+keys.reduce((n,key)=&gt;n+(key&gt;keys[index]?1:0),0);
-   squared+=(rank-(i+1))**2;
+   squared+=rankWeight(i)*(rank-(i+1))**2;
   });
-  return squared/(2*committeeTeams.length);
+  return squared/(2*weightTotal);
  }
- function fitWeight(ratings,records,committeeTeams,benchmark,headToHead=null){
+ function fitWeight(ratings,records,committeeTeams,benchmark,headToHead=null,weighted=false){
   if(!committeeTeams.length)return null;
   const rows=buildScores(ratings,records,0,benchmark);
   // Ranks change only when two affine scores cross. Check every interval and
@@ -1767,7 +1774,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   const boundaries=[...new Set(crossings)].sort((a,b)=&gt;a-b);
   let best=null;
   function consider(weight,low,high){
-   const mse=rankMSE(rows,committeeTeams,weight,headToHead),span=high-low;
+   const mse=rankMSE(rows,committeeTeams,weight,headToHead,weighted),span=high-low;
    if(!best||mse&lt;best.mse-1e-12||(Math.abs(mse-best.mse)&lt;1e-12&amp;&amp;(span&gt;best.span+1e-12||(Math.abs(span-best.span)&lt;1e-12&amp;&amp;Math.abs(weight-.5)&lt;Math.abs(best.weight-.5))))){best={weight,mse,low,high,span};}
   }
   boundaries.forEach((weight,i)=&gt;{
@@ -1780,24 +1787,25 @@ html&gt;body{padding:0}&lt;/style&gt;
  function drawFits(){
   root.querySelectorAll(&#x27;[data-fit-row]&#x27;).forEach(row=&gt;{row.hidden=Number(row.dataset.fitRow)!==metricCol;});
   const teams=committeeSnapshots[week].teams;
-  if(!fitCache.has(week))fitCache.set(week,[1,2,3].map(benchmark=&gt;fitWeight(weeklyRatings[week],weekSnapshots[week].record,teams,benchmark)));
-  const fits=fitCache.get(week);
-  const adjustedKey=week+&#x27;-h2h&#x27;;
-  if(!fitCache.has(adjustedKey))fitCache.set(adjustedKey,[1,2,3].map(benchmark=&gt;fitWeight(weeklyRatings[week],weekSnapshots[week].record,teams,benchmark,new Set(headToHeadSnapshots[week].map(([winner,loser])=&gt;winner+&#x27;\u0000&#x27;+loser)))));
+  const baseKey=fitKey(),weighted=fitLoss===&#x27;weighted&#x27;,lossLabel=weighted?&#x27;weighted MSE&#x27;:&#x27;MSE&#x27;;
+  if(!fitCache.has(baseKey))fitCache.set(baseKey,[1,2,3].map(benchmark=&gt;fitWeight(weeklyRatings[week],weekSnapshots[week].record,teams,benchmark,null,weighted)));
+  const fits=fitCache.get(baseKey);
+  const adjustedKey=fitKey(true);
+  if(!fitCache.has(adjustedKey))fitCache.set(adjustedKey,[1,2,3].map(benchmark=&gt;fitWeight(weeklyRatings[week],weekSnapshots[week].record,teams,benchmark,new Set(headToHeadSnapshots[week].map(([winner,loser])=&gt;winner+&#x27;\u0000&#x27;+loser)),weighted)));
   const adjustedFit=fitCache.get(adjustedKey)[metricCol-1];
   root.querySelectorAll(&#x27;[data-fit-result]&#x27;).forEach(element=&gt;{
    const benchmark=Number(element.dataset.fitResult),fit=fits[benchmark-1];
    const name=[&#x27;Elite&#x27;,&#x27;Good&#x27;,&#x27;Average&#x27;][benchmark-1];
-   element.textContent=fit?`${name}, score-only fit: FEI ${((1-fit.weight)*100).toFixed(2)}% · SOR ${(fit.weight*100).toFixed(2)}% · MSE ${fit.mse.toFixed(2)}`:`${name}: matching committee rankings pending`;
+   element.textContent=fit?`${name}, score-only fit: FEI ${((1-fit.weight)*100).toFixed(2)}% · SOR ${(fit.weight*100).toFixed(2)}% · ${lossLabel} ${fit.mse.toFixed(2)}`:`${name}: matching committee rankings pending`;
   });
   root.querySelectorAll(&#x27;[data-fit-benchmark]&#x27;).forEach(button=&gt;{button.disabled=!fits[Number(button.dataset.fitBenchmark)-1];});
   root.querySelector(&#x27;#fei-use-h2h-fit&#x27;).disabled=!adjustedFit;
-  root.querySelector(&#x27;.fei-h2h-fit-result&#x27;).textContent=adjustedFit?`Head-to-head fit: FEI ${((1-adjustedFit.weight)*100).toFixed(2)}% · SOR ${(adjustedFit.weight*100).toFixed(2)}% · MSE ${adjustedFit.mse.toFixed(2)}`:&#x27;Head-to-head fit: matching committee rankings pending&#x27;;
+  root.querySelector(&#x27;.fei-h2h-fit-result&#x27;).textContent=adjustedFit?`Head-to-head fit: FEI ${((1-adjustedFit.weight)*100).toFixed(2)}% · SOR ${(adjustedFit.weight*100).toFixed(2)}% · ${lossLabel} ${adjustedFit.mse.toFixed(2)}`:&#x27;Head-to-head fit: matching committee rankings pending&#x27;;
   const status=root.querySelector(&#x27;.fei-fit-status&#x27;);
   if(!teams.length){status.textContent=&#x27;Fitted weights are unavailable until matching committee rankings are added.&#x27;;return;}
-  const mse=rankMSE(scoreRows,teams,weightPct/100,headToHeadEnabled?headToHeadSnapshots[week]:null),fit=headToHeadEnabled?adjustedFit:fits[metricCol-1];
+  const mse=rankMSE(scoreRows,teams,weightPct/100,headToHeadEnabled?headToHeadSnapshots[week]:null,weighted),fit=headToHeadEnabled?adjustedFit:fits[metricCol-1];
   const atBest=Math.abs(mse-fit.mse)&lt;1e-12;
-  status.textContent=`Current ${[&#x27;elite&#x27;,&#x27;good&#x27;,&#x27;average&#x27;][metricCol-1]} benchmark, head-to-head ${headToHeadEnabled?&#x27;on&#x27;:&#x27;off&#x27;}: MSE ${mse.toFixed(2)} · Best MSE ${fit.mse.toFixed(2)}${atBest?&#x27; · Minimum reached&#x27;:&#x27;&#x27;}. In-sample fit to this committee release. Multiple weights can produce the same ranks; the fitted value uses the midpoint of the widest best interval.`;
+  status.textContent=`Current ${[&#x27;elite&#x27;,&#x27;good&#x27;,&#x27;average&#x27;][metricCol-1]} benchmark, head-to-head ${headToHeadEnabled?&#x27;on&#x27;:&#x27;off&#x27;}: ${lossLabel} ${mse.toFixed(2)} · Best ${lossLabel} ${fit.mse.toFixed(2)}${atBest?&#x27; · Minimum reached&#x27;:&#x27;&#x27;}. In-sample fit to this committee release. Multiple weights can produce the same ranks; the fitted value uses the midpoint of the widest best interval.`;
  }
  function fillTable(table,headers,rows){
   const head=document.createElement(&#x27;tr&#x27;);
@@ -1950,15 +1958,16 @@ html&gt;body{padding:0}&lt;/style&gt;
   animateNext=false;
  }
  root.querySelectorAll(&#x27;[data-fit-benchmark]&#x27;).forEach(button=&gt;button.addEventListener(&#x27;click&#x27;,()=&gt;{
-  const benchmark=Number(button.dataset.fitBenchmark),fit=fitCache.get(week)?.[benchmark-1];
+  const benchmark=Number(button.dataset.fitBenchmark),fit=fitCache.get(fitKey())?.[benchmark-1];
   if(!fit)return;
   headToHeadEnabled=false;headToHeadInput.checked=false;
   metricCol=benchmark;dropdown.value=String(benchmark);weightPct=fit.weight*100;weightInput.value=String(100-weightPct);animateNext=true;draw();save();
  }));
  root.querySelector(&#x27;#fei-use-h2h-fit&#x27;).addEventListener(&#x27;click&#x27;,()=&gt;{
-  const fit=fitCache.get(week+&#x27;-h2h&#x27;)?.[metricCol-1];if(!fit)return;
+  const fit=fitCache.get(fitKey(true))?.[metricCol-1];if(!fit)return;
   headToHeadEnabled=true;headToHeadInput.checked=true;weightPct=fit.weight*100;weightInput.value=String(100-weightPct);animateNext=true;draw();save();
  });
+ fitLossInput.addEventListener(&#x27;change&#x27;,()=&gt;{fitLoss=fitLossInput.value===&#x27;weighted&#x27;?&#x27;weighted&#x27;:&#x27;uniform&#x27;;draw();save();});
  headToHeadInput.addEventListener(&#x27;change&#x27;,()=&gt;{headToHeadEnabled=headToHeadInput.checked;animateNext=true;draw();save();});
  weightInput.addEventListener(&#x27;input&#x27;,()=&gt;{weightPct=100-Number(weightInput.value);animateNext=true;draw();});
  weightInput.addEventListener(&#x27;change&#x27;,save);
@@ -1966,7 +1975,7 @@ html&gt;body{padding:0}&lt;/style&gt;
  measureDropdown.addEventListener(&#x27;change&#x27;,()=&gt;{measure=measureDropdown.value;animateNext=true;draw();save();});
  dropdown.addEventListener(&#x27;change&#x27;,()=&gt;{metricCol=Number(dropdown.value);animateNext=true;draw();save();});
  let measuredWidth=0;new ResizeObserver(()=&gt;{const w=panels.getBoundingClientRect().width;if(Math.abs(w-measuredWidth)&gt;.5){measuredWidth=w;draw();}}).observe(panels);
- window.addEventListener(&#x27;openai:set_globals&#x27;,e=&gt;{const team=e.detail?.globals?.widgetState?.modelContent?.team;if(team)selected=team;const nextWeek=String(e.detail?.globals?.widgetState?.modelContent?.week||week);if(weekSnapshots[nextWeek])week=nextWeek;weekDropdown.value=week;const h2h=e.detail?.globals?.widgetState?.modelContent?.headToHead;if(typeof h2h===&#x27;boolean&#x27;)headToHeadEnabled=h2h;headToHeadInput.checked=headToHeadEnabled;const mode=e.detail?.globals?.widgetState?.modelContent?.measure;if([&#x27;schedule&#x27;,&#x27;record&#x27;,&#x27;fei&#x27;,&#x27;combined&#x27;].includes(mode))measure=mode;const w=e.detail?.globals?.widgetState?.modelContent?.sorWeight;if(typeof w===&#x27;number&#x27;&amp;&amp;Number.isFinite(w))weightPct=Math.max(0,Math.min(100,w*100));weightInput.value=String(100-weightPct);measureDropdown.value=measure;const b=Number(e.detail?.globals?.widgetState?.modelContent?.benchmark);if([1,2,3].includes(b))metricCol=b;dropdown.value=String(metricCol);draw();});
+ window.addEventListener(&#x27;openai:set_globals&#x27;,e=&gt;{const loss=e.detail?.globals?.widgetState?.modelContent?.fitLoss;if(loss===&#x27;weighted&#x27;||loss===&#x27;uniform&#x27;)fitLoss=loss;fitLossInput.value=fitLoss;const team=e.detail?.globals?.widgetState?.modelContent?.team;if(team)selected=team;const nextWeek=String(e.detail?.globals?.widgetState?.modelContent?.week||week);if(weekSnapshots[nextWeek])week=nextWeek;weekDropdown.value=week;const h2h=e.detail?.globals?.widgetState?.modelContent?.headToHead;if(typeof h2h===&#x27;boolean&#x27;)headToHeadEnabled=h2h;headToHeadInput.checked=headToHeadEnabled;const mode=e.detail?.globals?.widgetState?.modelContent?.measure;if([&#x27;schedule&#x27;,&#x27;record&#x27;,&#x27;fei&#x27;,&#x27;combined&#x27;].includes(mode))measure=mode;const w=e.detail?.globals?.widgetState?.modelContent?.sorWeight;if(typeof w===&#x27;number&#x27;&amp;&amp;Number.isFinite(w))weightPct=Math.max(0,Math.min(100,w*100));weightInput.value=String(100-weightPct);measureDropdown.value=measure;const b=Number(e.detail?.globals?.widgetState?.modelContent?.benchmark);if([1,2,3].includes(b))metricCol=b;dropdown.value=String(metricCol);draw();});
  draw();
 })();
 &lt;/script&gt;
