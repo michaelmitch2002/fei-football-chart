@@ -17,7 +17,7 @@ The combined view contains the score plot for all teams, our top 25 table, the C
 
 ### Fit weights to committee
 
-The SOR share is labeled `z`, with FEI share `1-z`. For each benchmark, the fit minimizes `mean((our rank - committee rank)^2 / 2)` across the 25 committee-ranked teams. This is squared perpendicular distance to the equal-rank line in rank coordinates, independent of chart dimensions. Our ranks always use the complete 138-team population. This is a direct rank-error optimization, not ordinary least squares on raw scores.
+SOR and FEI weights are displayed as percentages adding to 100%. Only the selected benchmark's fit and restore button are visible. For each benchmark, the fit minimizes `mean((our rank - committee rank)^2 / 2)` across the 25 committee-ranked teams. This is squared perpendicular distance to the equal-rank line in rank coordinates, independent of chart dimensions. Our ranks always use the complete 138-team population. This is a direct rank-error optimization, not ordinary least squares on raw scores.
 
 Because the objective changes only when teams exchange ranks, the optimizer evaluates every pairwise score crossing, all intervals between crossings, and endpoints 0 and 1. Crossings are evaluated separately because tied competition ranks can have a different loss. If several intervals minimize error, the midpoint of the widest is used; a tie-only optimum uses the crossing itself. Each benchmark has a button to apply or restore its full-precision fitted weight. Slider and saved state retain that precision. Fits are cached separately for each week and unavailable when the matching committee rankings are missing. Results describe the committee release used to fit them.
 
