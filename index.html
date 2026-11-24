@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Exploring the balance between best and most deserving in college football rankings, using FEI and strength of record.">
-  <title>How do we rank? · College football ratings</title>
+  <meta name="description" content="Exploring how you play and who you play in college football rankings, using FEI and strength of record.">
+  <title>How does committee rank? · College football ratings</title>
   <style>
     :root { color-scheme:light dark; --page:light-dark(#fff,#181818); --ink:light-dark(#202020,#eee); --muted:light-dark(#585858,#bdbdbd); --line:light-dark(#dedede,#444); }
     * { box-sizing:border-box; }
@@ -30,11 +30,11 @@
   <header><nav aria-label="Main navigation"><a href="index.html" aria-current="page">Introduction</a><a href="chart.html">Explore the rankings</a><a href="personal.html">Your top 25</a></nav></header>
   <main>
     <p class="eyebrow">College football · 2026</p>
-    <h1>How do we rank?</h1>
+    <h1>How does committee rank?</h1>
     <p>The 2026 college football season has made me think a lot about rankings and metrics. For the past three weeks, I have watched on Tuesday evening as the playoff committee unveils a ranking of teams that manages to upset every fanbase except one (Alabama). It does not especially help the committee’s case in the eyes of the public that they use a proprietary and undisclosed set of metrics for this ranking.</p>
     <p class="statement">We are given an output we do not understand with little insight into the inputs.</p>
-    <p>My goal for this project is to try and generate a little intuition about the ranking process. I assume that the ranking of a team is some combination of “<em>best</em>” vs. “<em>most deserving</em>”. Another way to see it is “<em>how you play</em>” and “<em>who you play</em>”. “<em>Best</em>/<em>how you play</em>” is judged by a power rating, and “<em>most deserving</em>/<em>who you play</em>” is judged by strength of record (SOR).</p>
-    <p>This page presents both sets of ratings on their own for weeks 11 and 12 of the 2026 college football season, as well as a weighted sum of the two. I also attempt to solve a regression problem for the appropriate weighting between “<em>best</em>” and “<em>most deserving</em>”. Finally, there is a “head-to-head criteria” option that works from the first-place team to the last-place team in a single pass and swaps two teams if the higher-ranked team lost to the team directly below it.</p>
+    <p>My goal for this project is to try and generate a little intuition about the ranking process. People talk about rankings as a tug-of-war between “<em>best</em>” vs. “<em>most deserving</em>”. I disagree with the language used. I prefer “<em>how you play</em>” and “<em>who you play</em>”. “<em>How you play</em>” is judged by a power rating, and “<em>who you play</em>” is judged by strength of record (SOR).</p>
+    <p>This page presents both sets of ratings on their own for weeks 11 and 12 of the 2026 college football season, as well as a weighted sum of the two. I also attempt to solve a regression problem for the appropriate weighting between “<em>how you play</em>” and “<em>who you play</em>”. Finally, there is a “head-to-head criteria” option that works from the first-place team to the last-place team in a single pass and swaps two teams if the higher-ranked team lost to the team directly below it.</p>
     <p>I hope this provides you with some insight into the rankings!</p>
     <h2>Metric overview</h2>
     <p>Let me describe these metrics quickly. I use Brian Fremeau’s FEI metrics for this project. His power ratings are the FEI ratings. They measure opponent-adjusted possession efficiency: the expected scoring advantage per non-garbage possession on a neutral field against an average opponent. Strength of schedule (SOS) is the number of losses a benchmark team would expect to have against a schedule. Obviously, this number of expected losses is a function of the quality of the benchmark team. SOR is simply the difference between the expected number of losses and the actual number of losses.<sup><a href="#fei-source" aria-label="Source 1: Brian Fremeau’s FEI definitions">[1]</a></sup></p>

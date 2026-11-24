@@ -70,19 +70,19 @@
       if(personalLogos[team]) { const logo=document.createElement('img'); logo.src=personalLogos[team]; logo.alt=''; logo.addEventListener('error',()=>logo.hidden=true); teamName.append(logo); }
       const name=document.createElement('span'); name.textContent=team; teamName.append(name); teamCell.append(teamName); cell(row,String(ranks.get(team))); cell(row,(difference>0?'+':'')+difference); body.append(row);
     });
-    $('comparison-caption').textContent=fitLabel(fit)+' · SOR '+percent(fit.weight)+' · FEI '+percent(1-fit.weight)+'. Positive difference means the fitted model ranks the team lower than you do.';
+    $('comparison-caption').textContent=fitLabel(fit)+' · FEI '+percent(1-fit.weight)+' · SOR '+percent(fit.weight)+'. Positive difference means the fitted model ranks the team lower than you do.';
   }
   function render(fits) {
     currentFits=fits;
     const minimum=Math.min(...fits.map(fit=>fit.mse));
     const winners=fits.filter(fit=>Math.abs(fit.mse-minimum)<1e-10);
-    $('best-summary').textContent=(winners.length>1?'Equally closest matches: ':'Closest match: ')+winners.map(fit=>fitLabel(fit)+' — SOR '+percent(fit.weight)+', FEI '+percent(1-fit.weight)).join('; ')+'. MSE '+minimum.toFixed(2)+'.';
+    $('best-summary').textContent=(winners.length>1?'Equally closest matches: ':'Closest match: ')+winners.map(fit=>fitLabel(fit)+' — FEI '+percent(1-fit.weight)+', SOR '+percent(fit.weight)).join('; ')+'. MSE '+minimum.toFixed(2)+'.';
     $('result-context').textContent='Based on your submitted Week '+submitted.week+' top 25. Lower MSE means closer alignment with your order. Inputs use all 138 FBS teams.';
     const body=$('fit-table').querySelector('tbody'); body.replaceChildren(); $('fit-choice').replaceChildren();
     fits.forEach((fit,index)=>{
       const best=Math.abs(fit.mse-minimum)<1e-10, row=document.createElement('tr');
       if(best) row.classList.add('best');
-      cell(row,benchmarkNames[fit.benchmark-1]); cell(row,fit.h2h?'Head-to-head':'Score-only'); cell(row,percent(fit.weight)); cell(row,percent(1-fit.weight)); cell(row,fit.mse.toFixed(2)); cell(row,best?'Closest match':''); body.append(row);
+      cell(row,benchmarkNames[fit.benchmark-1]); cell(row,fit.h2h?'Head-to-head':'Score-only'); cell(row,percent(1-fit.weight)); cell(row,percent(fit.weight)); cell(row,fit.mse.toFixed(2)); cell(row,best?'Closest match':''); body.append(row);
       const option=document.createElement('option'); option.value=String(index); option.textContent=fitLabel(fit)+(best?' · Closest match':''); $('fit-choice').append(option);
     });
     $('fit-choice').value=String(fits.indexOf(winners[0])); compare(); $('personal-results').hidden=false;

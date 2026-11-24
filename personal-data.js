@@ -11,7 +11,7 @@ const weeklyRatings={"11":[["Georgia",1.61,1],["Notre Dame",1.53,2],["Miami",1.4
   };
   const feiZ=standardize(ratings.map(d=>d[1]));
   const sorZ=standardize(ratings.map(d=>sorByTeam.get(d[0])));
-  const rows=ratings.map((d,i)=>({team:d[0],fei:d[1],feiRank:d[2],sor:sorByTeam.get(d[0]),feiZ:feiZ[i],sorZ:sorZ[i],score:sorWeight*sorZ[i]+(1-sorWeight)*feiZ[i]}));
+  const rows=ratings.map((d,i)=>({team:d[0],fei:d[1],feiRank:d[2],sor:sorByTeam.get(d[0]),feiZ:feiZ[i],sorZ:sorZ[i],score:(1-sorWeight)*feiZ[i]+sorWeight*sorZ[i]}));
   rows.sort((a,b)=>b.score-a.score||a.team.localeCompare(b.team));
   let previousKey,rank=0;
   rows.forEach((r,i)=>{const key=Math.round(r.score*1e12);if(key!==previousKey)rank=i+1;r.rank=rank;previousKey=key;});
@@ -31,11 +31,11 @@ const weeklyRatings={"11":[["Georgia",1.61,1],["Notre Dame",1.53,2],["Miami",1.4
  function rankMSE(rows,committeeTeams,weight,headToHead=null){
   if(!committeeTeams.length)return null;
   if(headToHead){
-   const scored=rows.map(r=>({...r,score:weight*r.sorZ+(1-weight)*r.feiZ})).sort((a,b)=>b.score-a.score||a.team.localeCompare(b.team));
+   const scored=rows.map(r=>({...r,score:(1-weight)*r.feiZ+weight*r.sorZ})).sort((a,b)=>b.score-a.score||a.team.localeCompare(b.team));
    const ranks=new Map(applyHeadToHead(scored,headToHead).map(r=>[r.team,r.rank]));
    return committeeTeams.reduce((sum,team,i)=>sum+(ranks.get(team)-(i+1))**2,0)/(2*committeeTeams.length);
   }
-  const keys=rows.map(r=>Math.round((weight*r.sorZ+(1-weight)*r.feiZ)*1e12));
+  const keys=rows.map(r=>Math.round(((1-weight)*r.feiZ+weight*r.sorZ)*1e12));
   const indices=new Map(rows.map((r,i)=>[r.team,i]));
   let squared=0;
   committeeTeams.forEach((team,i)=>{
