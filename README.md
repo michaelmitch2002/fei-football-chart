@@ -35,6 +35,8 @@ The cumulative Week 11 and Week 12 result snapshots contain 629 and 695 FBS-vs-F
 
 ## GitHub Pages
 
-Publish the `main` branch from the repository root in Settings → Pages. The entry point is `index.html`. No build step is needed.
+Publish the `main` branch from the repository root in Settings → Pages. The entry point is `index.html`, an introduction in Michael's words with a citation to Brian Fremeau's metric definitions. The interactive visualization is `chart.html`; both pages have navigation between them. No server build step is needed.
+
+After refreshing the standalone `FEI Schedule Strength.html` export in the parent directory, run `python3 build-chart.py` to update `chart.html` without replacing the introduction.
 
 The chart library and logos load from external CDNs. School logos belong to their respective owners.
