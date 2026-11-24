@@ -40,3 +40,7 @@ Publish the `main` branch from the repository root in Settings → Pages. The en
 After refreshing the standalone `FEI Schedule Strength.html` export in the parent directory, run `python3 build-chart.py` to update `chart.html` without replacing the introduction.
 
 The chart library and logos load from external CDNs. School logos belong to their respective owners.
+
+## Personal rankings
+
+`personal.html` lets visitors type or select 25 unique FBS teams using the latest available week automatically (currently Week 12), with no week selector. Drafts stay in browser storage; submission runs locally in a Web Worker. The same chart optimizer fits all three benchmarks in score-only and head-to-head modes against the visitor’s ordered teams, using all 138 FBS teams for standardization and model ranks. All minimum-MSE fits are highlighted; a selector compares each fitted model with the submitted ranking. `personal-data.js` contains frozen copies of the chart’s weekly data and shared mathematical functions. Refresh it whenever the chart’s data or optimizer changes. No server or personal-ranking uploads are used.
