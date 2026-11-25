@@ -21,7 +21,7 @@ FEI and SOR weights are displayed as percentages adding to 100%. Only the select
 
 Because the objective changes only when teams exchange ranks, the optimizer evaluates every pairwise score crossing, all intervals between crossings, and endpoints 0 and 1. Crossings are evaluated separately because tied competition ranks can have a different loss. If several intervals minimize error, the midpoint of the widest is used; a tie-only optimum uses the crossing itself. Each benchmark has a button to apply or restore its full-precision fitted weight. Slider and saved state retain that precision. Fits are cached separately for each week and unavailable when the matching committee rankings are missing. Results describe the committee release used to fit them.
 
-The November 17, 2026 CFP release (games through November 15) matches the Week 11 snapshot: https://collegefootballplayoff.com/news/2026/11/17/rankings. The matching Week 12 release is pending as of November 23 and is scheduled for November 24. Week 12 shows a pending message until that snapshot is added. FEI-only mode shows standardized values, raw FEI ratings, and published FEI ranks.
+The November 17, 2026 CFP release (games through November 15) matches the Week 11 snapshot: https://collegefootballplayoff.com/news/2026/11/17/rankings. The November 24, 2026 CFP release, for games through November 21, matches Week 12: https://collegefootballplayoff.com/news/2026/11/24/rankings. Both saved weeks include the committee top 25, rank comparison, and equal-weight and rank-weighted fits with or without head-to-head criteria. FEI-only mode shows standardized values, raw FEI ratings, and published FEI ranks.
 
 ## Head-to-head criteria
 
